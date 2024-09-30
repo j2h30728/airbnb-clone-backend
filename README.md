@@ -245,3 +245,216 @@ class House(models.Model):
 ```
 ## 4.4 Documentation
 ```
+
+# 5 Users App
+
+## 5.0 Introduction
+
+### [Using a custom user model when starting a project](https://docs.djangoproject.com/en/5.1/topics/auth/customizing/#using-a-custom-user-model-when-starting-a-project)
+
+- use model 생성시, 내가 원하는 필드의 값을 넣어주고 싶다.
+  - 소셜 로그인 정보 등
+  - username대신 email으로 식별 토큰으로 사용하기 등
+
+```py
+AUTH_USER_MODEL = "myapp.MyUser"
+
+
+# user model
+from django.contrib.auth.models import AbstractUser
+
+
+class User(AbstractUser):
+    pass
+
+# admin.py
+from django.contrib import admin
+from django.contrib.auth.admin import UserAdmin
+from .models import User
+
+admin.site.register(User, UserAdmin)
+```
+
+- 프로젝트 시작시에 custom user model 생성하기
+  - 프로젝트 중간에 테이블을 변경하게 되면 외래 키와 다양한 관계 등에 대해서 영향을 끼칠 수 있기 때문에 어려움이 존재한다.
+
+## 5.1 Custom Model
+
+```bash
+$ poetry shell
+$ python manage.py startapp users
+```
+
+### Django의 user를 상속받는 custom user 만들기
+
+- 아래와 같은 형식은 ㅁ모델을 처음부터 끝까지 새로이 만드는 것
+- 장고는 제공하는 것이 많기 때문에 직접 만드는것은 손해
+
+  ```py
+  from django.db import models
+  class User(models.Model):
+
+  ```
+
+#### 1. `AbstractUser`상속받기
+
+- `AbstractUser`을 상속받아서, django가 지원하는 메서드와 함께 custom user model을 만든다.
+
+```py
+
+from django.contrib.auth.models import AbstractUser
+
+class User(AbstractUser):
+    pass
+```
+
+#### 2. custom user model을 사용하는 것을 알림
+
+- setting.py
+
+```py
+# Auth
+AUTH_USER_MODEL = "users.User"
+```
+
+#### 3. 생성한 user application 설치
+
+- setting.py
+
+```py
+# Application definition
+
+CUSTOM_APPS = ["houses.apps.HousesConfig", "users.apps.UsersConfig"]
+```
+
+#### 4. django의 use model을 내가 만든 것으로 교체
+
+1. 사용자가 있을때 교체하는 것은 어렵고 힘들기 떄문에 처음 부터 설정해주는 것
+   => db.splite3 , migrations 파일 삭제
+
+2. 서버 재설정
+
+```bash
+$ python manage.py makemigrations
+```
+
+3. 데이터 베이스 새 정보로 업데이트
+
+```bash
+$ python manage.py migrate
+```
+
+#### custom user admin 생성
+
+```py
+from django.contrib import admin
+from django.contrib.auth.admin import UserAdmin
+from .models import User
+
+@admin.register(User) # User 에서 관리
+class CustomUserAdmin(UserAdmin):
+    pass
+
+```
+
+```bash
+$ python manage.py runserver
+```
+
+#### 데이터 베이스를 비웠으니 super user 재생성
+
+```bash
+
+$ python manage.py createsuperuser
+```
+
+## 5.2 Custom Fields
+
+- 상속 받고있는 AbstractUser의 클래스 내에서는 first_name 과 last_name 메서드가 존재하기 떄문에 사용하지 않게 덮어씌운다.
+
+  ```py
+      first_name = models.CharField(_("first name"), max_length=150, blank=True)
+      last_name = models.CharField(_("last name"), max_length=150, blank=True)
+  ```
+
+- `editable=False`를 사용하게 되면 관리자 패널에서 보여지지 않는다.
+
+  ```py
+  class User(AbstractUser):
+      first_name = models.CharField(max_length=150, editable=False)
+      last_name = models.CharField(max_length=150, editable=False)
+      name = models.CharField(max_length=150)
+      is_host = models.BooleanField()
+  ```
+
+> model을 수정할때마다 migrate를 해주는 이유는?
+> -> python코드가 데이터베이스의 구조와 같지 않기떄문에 동일하게 맞춰주기 위함임
+
+## 5.3 Defaults
+
+- 기존에 있는 데이터에는 어떻게 추가해야할지에 대한 대책
+
+```py
+    name = models.CharField(max_length=150, default="")
+    is_host = models.BooleanField(default=False)
+```
+
+- `default=<기본값으로 지정하고 싶은 값>`
+- `NULL=True` : NULL 값을 허용한다.
+
+## 5.4 Custom Admin
+
+```py
+
+from django.contrib import admin
+from django.contrib.auth.admin import UserAdmin
+from .models import User
+
+@admin.register(User)
+class CustomUserAdmin(UserAdmin):
+    fieldsets = ( # fieldset를 사용해 섹션으로 만들수 있다
+        (
+            "Profile",
+            {
+                "fields": ("username", "password", "name", "email", "is_host"),
+                "classes": ("wide",),
+            },
+        ),
+        (
+            "Permissions",
+            {
+                "fields": (
+                    "is_active",
+                    "is_staff",
+                    "is_superuser",
+                    "groups",
+                    "user_permissions",
+                ),
+                "classes": ("collapse",), # 해당 섹션을 접고 펴는 동작으로 스타일링
+            },
+        ),
+        (
+            "Important Dates",
+            {
+                "fields": ("last_login", "date_joined"),
+                "classes": ("collapse",),  # 해당 섹션을 접고 펴는 동작으로 스타일링
+            },
+        ),
+    )
+    list_display = ("username", "email", "name", "is_host")
+```
+
+## 5.5 Foreign Keys
+
+- user 의 Primary Key (id)를 참조한다.
+
+  ```py
+  # house model
+
+      owner = models.ForeignKey(
+          "users.User",
+          on_delete=models.CASCADE,
+      )
+  ```
+
+## 5.6 Super Mega Recap
