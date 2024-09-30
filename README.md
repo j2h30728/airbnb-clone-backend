@@ -458,3 +458,111 @@ class CustomUserAdmin(UserAdmin):
   ```
 
 ## 5.6 Super Mega Recap
+
+# 6 Models and Admin
+
+## 6.0 User Model
+
+```bash
+$ poetry add Pillow
+```
+
+### blank=True
+
+- form에서 필드가 필수적이지 않게 해주는 설정
+- 필드를 비워 둘수있다는 의미
+- `null=True`와 다르다.; 필드 값에서 null을 허용한다는 의미
+
+```py
+avatar = models.ImageField(blank=True)
+```
+
+```py
+class User(AbstractUser):
+    class GenderChoices(models.TextChoices):
+        MALE = ("male", "Male")
+        FEMALE = ("female", "Female")
+    class LanguageChoices(models.TextChoices):
+        KR = ("kr", "Korean")
+        EN = ("en", "English")
+    class CurrencyChoices(models.TextChoices):
+        WON = "won", "Korean Won"
+        USD = "usd", "Dollar"
+
+    avatar = models.ImageField(blank=True)
+    gender = models.CharField(
+        max_length=10,
+        choices=GenderChoices.choices,
+    )
+    language = models.CharField(
+        max_length=2,
+        choices=LanguageChoices.choices,
+    )
+    currency = models.CharField(
+        max_length=5,
+        choices=CurrencyChoices.choices,
+    )
+
+    # 생략
+```
+
+## 6.1 Room Model
+
+- room model 생성
+  ```bash
+  $ python manage.py startapp rooms
+  ```
+
+## 6.2 Many to Many
+
+```py
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+```
+
+- `auto_now_add=True` : object가 새로 생성될때 설정
+- `auto_now=True` : 업데이트 될때마다 설정
+
+### common
+
+```bash
+$ python manage.py startapp common
+$ python manage.py migrations common
+$ python manage.py migrate
+
+```
+
+- 모두가 공유 가능한 공통 코드를 가지고 있을 앱
+- 데이터베이스에 추가하지않고 다른 model에서 재사용하기 위한 model
+- `abstract=True` : 데이터베이스에 저장하지 않는다.
+
+```py
+from django.db import models
+class CommonModel(models.Model):
+    """Common Model Definition"""
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    # 장고가 abstract를 보면 데이터베이스에 저장하지 않는다.
+    class Meta:
+        abstract = True
+
+```
+
+## 6.3 Recap
+
+## 6.4 Rooms Admin
+
+## 6.5 Experiences
+
+## 6.6 Categories
+
+## 6.7 Reviews
+
+## 6.8 Wishlists
+
+## 6.9 Bookings
+
+## 6.10 Medias
+
+## 6.11 Direct Messages
